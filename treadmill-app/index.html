@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>E-Run Treadmill</title>
+<meta name="description" content="Control and track an E-RUNNING Bluetooth treadmill from a modern phone.">
+<meta name="theme-color" content="#0f1115">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  :root {
+    --bg: #f4f5f7; --surface: #ffffff; --surface-2: #eceef2; --text: #14161a; --muted: #5e6470;
+    --border: #d9dce2; --accent: #1f8f4e; --accent-text: #ffffff; --danger: #c93a32; --warn: #b7791f;
+    --radius: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1115; --surface: #181b21; --surface-2: #222630; --text: #eef0f4; --muted: #99a0ad;
+      --border: #2c313c; --accent: #35c06f; --accent-text: #08130c; --danger: #ef5b52; --warn: #e3a33b;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1115; --surface: #181b21; --surface-2: #222630; --text: #eef0f4; --muted: #99a0ad;
+    --border: #2c313c; --accent: #35c06f; --accent-text: #08130c; --danger: #ef5b52; --warn: #e3a33b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans Thai", sans-serif;
+    padding: env(safe-area-inset-top) 0 calc(72px + env(safe-area-inset-bottom));
+    -webkit-tap-highlight-color: transparent;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; border: 0; }
+  input, select { font: inherit; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; width: 100%; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 0 16px; }
+  header { display: flex; align-items: center; gap: 12px; padding: 14px 0; }
+  header h1 { font-size: 18px; margin: 0; flex: 1; }
+  .pill { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+  .pill.on { color: var(--accent); }
+  .btn { background: var(--surface-2); border-radius: 12px; padding: 10px 16px; font-weight: 600; }
+  .btn.primary { background: var(--accent); color: var(--accent-text); }
+  .btn.danger { background: var(--danger); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+  .label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .state { text-align: center; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+  .state.running { color: var(--accent); }
+  .state.alert { color: var(--danger); }
+
+  .big { display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; gap: 8px; text-align: center; }
+  .big .value { font-size: 64px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .big .unit { color: var(--muted); font-size: 14px; }
+  .round { width: 56px; height: 56px; border-radius: 50%; background: var(--surface-2); font-size: 28px; font-weight: 600; }
+  .presets { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+  .presets button { flex: 1 1 0; min-width: 44px; padding: 8px 0; border-radius: 10px; background: var(--surface-2); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .stat .v { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat .v small { font-size: 14px; color: var(--muted); font-weight: 500; margin-left: 2px; }
+  .startstop { display: flex; gap: 12px; margin-bottom: 12px; }
+  .startstop .btn { flex: 1; padding: 18px; font-size: 18px; border-radius: var(--radius); }
+
+  .goal { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .goalbar { height: 6px; border-radius: 3px; background: var(--surface-2); margin-top: 10px; overflow: hidden; }
+  .goalbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .5s; }
+
+  .alert { background: color-mix(in srgb, var(--danger) 14%, var(--surface)); border-color: var(--danger); }
+  .alert b { color: var(--danger); }
+  .hidden { display: none !important; }
+
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 8px 0; border-bottom: 1px solid var(--border); }
+  td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: 0; }
+  .log { font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace; max-height: 260px; overflow: auto; white-space: pre-wrap; word-break: break-all; color: var(--muted); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 14px; margin-bottom: 6px; }
+  .hint { font-size: 13px; color: var(--muted); }
+  .history-item { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .history-item:last-child { border-bottom: 0; }
+  .history-item .d { color: var(--muted); font-size: 13px; }
+  .history-item .n { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+
+  nav { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
+  nav .wrap { display: grid; grid-template-columns: repeat(4, 1fr); }
+  nav button { background: none; padding: 10px 0 12px; font-size: 13px; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  nav button svg { width: 22px; height: 22px; }
+  nav button.active { color: var(--accent); }
+
+  .overlay { position: fixed; inset: 0; background: color-mix(in srgb, var(--bg) 88%, transparent); display: flex; align-items: center; justify-content: center; flex-direction: column; z-index: 5; }
+  .overlay .n { font-size: 140px; font-weight: 800; color: var(--accent); line-height: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>E-Run Treadmill</h1>
+    <span class="pill" id="conn">Not connected</span>
+    <button class="btn primary" id="connectBtn">Connect</button>
+  </header>
+
+  <!-- RUN -->
+  <section id="tab-run">
+    <div class="card alert hidden" id="alertBox"><b id="alertTitle"></b><div id="alertText"></div></div>
+
+    <div class="card">
+      <div class="state" id="stateText">Connect your treadmill to begin</div>
+      <div class="big">
+        <button class="round" id="speedDown" aria-label="Slower">−</button>
+        <div><div class="value" id="speedVal">0.0</div><div class="unit" id="speedUnit">km/h</div></div>
+        <button class="round" id="speedUp" aria-label="Faster">+</button>
+      </div>
+      <div class="presets" id="speedPresets"></div>
+    </div>
+
+    <div class="card hidden" id="inclineCard">
+      <div class="big">
+        <button class="round" id="inclineDown" aria-label="Lower incline">−</button>
+        <div><div class="value" style="font-size:44px" id="inclineVal">0</div><div class="unit">incline</div></div>
+        <button class="round" id="inclineUp" aria-label="Higher incline">+</button>
+      </div>
+      <div class="presets" id="inclinePresets"></div>
+    </div>
+
+    <div class="startstop">
+      <button class="btn primary" id="startBtn" disabled>Start</button>
+      <button class="btn danger" id="stopBtn" disabled>Stop</button>
+    </div>
+
+    <div class="card">
+      <div class="stats">
+        <div class="stat"><div class="label">Time</div><div class="v" id="sTime">0:00:00</div></div>
+        <div class="stat"><div class="label">Distance</div><div class="v"><span id="sDist">0.00</span><small class="du">km</small></div></div>
+        <div class="stat"><div class="label">Calories</div><div class="v"><span id="sCal">0.0</span><small>kcal</small></div></div>
+        <div class="stat"><div class="label">Pace</div><div class="v"><span id="sPace">--:--</span><small class="pu">/km</small></div></div>
+        <div class="stat"><div class="label">Steps</div><div class="v" id="sSteps">0</div></div>
+        <div class="stat"><div class="label">Heart rate</div><div class="v"><span id="sHr">--</span><small>bpm</small></div></div>
+        <div class="stat"><div class="label">Avg speed</div><div class="v"><span id="sAvg">0.0</span><small class="su">km/h</small></div></div>
+        <div class="stat"><div class="label">Cadence</div><div class="v"><span id="sCad">0</span><small>spm</small></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="label" style="margin-bottom:8px">Goal (treadmill stops when reached)</div>
+      <div class="goal">
+        <select id="goalType">
+          <option value="none">No goal</option>
+          <option value="time">Time (min)</option>
+          <option value="distance">Distance</option>
+          <option value="calories">Calories (kcal)</option>
+        </select>
+        <input id="goalValue" type="number" inputmode="decimal" min="0" step="any" placeholder="Value" disabled>
+      </div>
+      <div class="goalbar"><i id="goalBar"></i></div>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section id="tab-history" class="hidden">
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
+        <div class="label">Totals</div>
+      </div>
+      <table id="totals"></table>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between">
+        <div class="label">Workouts</div>
+        <div class="row"><button class="btn" id="exportBtn">Export CSV</button></div>
+      </div>
+      <div id="historyList"></div>
+    </div>
+  </section>
+
+  <!-- DEVICE -->
+  <section id="tab-device" class="hidden">
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
+        <div class="label">Treadmill</div>
+        <button class="btn" id="refreshInfo" disabled>Refresh</button>
+      </div>
+      <table id="infoTable"></table>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
+        <div class="label">Heart-rate monitor</div>
+        <button class="btn" id="hrBtn">Connect</button>
+      </div>
+      <div class="hint" id="hrStatus">Use your Huawei watch (turn on heart-rate broadcast in its workout settings), or any Bluetooth chest strap. Without one, the treadmill's hand-grip sensor is used.</div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
+        <div class="label">Bluetooth log</div>
+        <button class="btn" id="clearLog">Clear</button>
+      </div>
+      <div class="log" id="log"></div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="tab-settings" class="hidden">
+    <div class="card">
+      <div class="field"><label for="setUnits">Distance units</label>
+        <select id="setUnits"><option value="km">Kilometres</option><option value="mi">Miles</option></select></div>
+      <div class="field"><label for="setWeight">Body weight (kg)</label>
+        <input id="setWeight" type="number" inputmode="numeric" min="20" max="250">
+        <div class="hint">Sent to the treadmill on connect, like the original app, for its calorie count.</div></div>
+      <div class="field"><label for="setStep">Speed step for − / +</label>
+        <select id="setStep"><option value="1">0.1</option><option value="5">0.5</option><option value="10">1.0</option></select></div>
+      <div class="field"><label><input type="checkbox" id="setAwake" style="width:auto;margin-right:8px">Keep screen on while running</label></div>
+      <div class="field"><label for="setTheme">Theme</label>
+        <select id="setTheme"><option value="">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+      <div class="field"><label for="setService">Custom service UUID (advanced)</label>
+        <input id="setService" placeholder="e.g. fff0 or a full 128-bit UUID" autocapitalize="off" spellcheck="false">
+        <div class="hint">Only needed if Connect says no data channel was found.</div></div>
+    </div>
+    <div class="card">
+      <div class="label" style="margin-bottom:8px">Try without a treadmill</div>
+      <button class="btn" id="demoBtn">Start demo treadmill</button>
+    </div>
+    <div class="card">
+      <button class="btn danger" id="clearHistory">Delete all workout history</button>
+    </div>
+  </section>
+</div>
+
+<div class="overlay hidden" id="countdown"><div class="label">Starting</div><div class="n" id="countdownN">3</div></div>
+
+<nav><div class="wrap">
+  <button data-tab="run" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2"/><path d="M4 22l4-7 3 2 2-5 4 3h3M9 11l2-3 4 1"/></svg>Run</button>
+  <button data-tab="history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>History</button>
+  <button data-tab="device"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg>Device</button>
+  <button data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Settings</button>
+</div></nav>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

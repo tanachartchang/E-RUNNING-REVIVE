@@ -1,0 +1,19 @@
+# Android / Gradle
+.gradle/
+.kotlin/
+build/
+local.properties
+.idea/
+*.iml
+keystore.properties
+*.jks
+*.keystore
+
+# Binaries (never commit the original manufacturer APK)
+*.apk
+*.aab
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
