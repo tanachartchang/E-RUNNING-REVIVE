@@ -2,6 +2,7 @@ package com.bkpsoft.erunning.ui
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +32,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -56,6 +58,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -65,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import com.bkpsoft.erunning.Conn
 import com.bkpsoft.erunning.FoundDevice
 import com.bkpsoft.erunning.GoalType
+import com.bkpsoft.erunning.R
 import com.bkpsoft.erunning.ScanTarget
 import com.bkpsoft.erunning.TreadmillViewModel
 import com.bkpsoft.erunning.ble.Protocol
@@ -76,7 +80,7 @@ private val Green = Color(0xFF1F8F4E)
 private val GreenDark = Color(0xFF35C06F)
 
 @Composable
-fun App(vm: TreadmillViewModel, withBluetooth: (() -> Unit) -> Unit) {
+fun App(vm: TreadmillViewModel, withBluetooth: (() -> Unit) -> Unit, openYouTube: () -> Unit) {
     val dark = isSystemInDarkTheme()
     val colors = if (dark) darkColorScheme(
         primary = GreenDark, onPrimary = Color(0xFF08130C),
@@ -103,7 +107,7 @@ fun App(vm: TreadmillViewModel, withBluetooth: (() -> Unit) -> Unit) {
             },
         ) { pad ->
             Column(Modifier.padding(pad).fillMaxSize()) {
-                TopBar(vm, withBluetooth)
+                TopBar(vm, withBluetooth, openYouTube)
                 Box(Modifier.weight(1f)) {
                     when (tab) {
                         0 -> RunScreen(vm)
@@ -125,7 +129,7 @@ fun App(vm: TreadmillViewModel, withBluetooth: (() -> Unit) -> Unit) {
 }
 
 @Composable
-private fun TopBar(vm: TreadmillViewModel, withBluetooth: (() -> Unit) -> Unit) {
+private fun TopBar(vm: TreadmillViewModel, withBluetooth: (() -> Unit) -> Unit, openYouTube: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("E-Running", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -134,6 +138,10 @@ private fun TopBar(vm: TreadmillViewModel, withBluetooth: (() -> Unit) -> Unit) 
                 style = MaterialTheme.typography.bodySmall,
                 color = if (vm.conn is Conn.Connected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+        // Opens YouTube with the floating speed control on top
+        IconButton(openYouTube, Modifier.padding(end = 4.dp).size(width = 44.dp, height = 40.dp)) {
+            Image(painterResource(R.drawable.ic_youtube), contentDescription = "Open YouTube", Modifier.size(width = 28.dp, height = 20.dp))
         }
         if (vm.conn == Conn.Disconnected) {
             Button({ withBluetooth { vm.startScan(ScanTarget.TREADMILL) } }) { Text("Connect") }
@@ -194,8 +202,6 @@ private fun RunScreen(vm: TreadmillViewModel) {
                         Triple("Pace", if (d > 0.01) ms(time / d) else "--:--", "/" + vm.distUnit()),
                         Triple("Heart rate", if (hr > 0) "$hr" else "--", "bpm"),
                         Triple("Avg speed", if (time > 0) "%.1f".format(distM / 1000.0 / (time / 3600.0) / (if (vm.info.unit == 1) 1.609344 else 1.0)) else "0.0", vm.speedUnit()),
-                        Triple("Steps", "${l?.steps ?: 0}", ""),
-                        Triple("Cadence", if (time > 10) "${((l?.steps ?: 0) / (time / 60.0)).toInt()}" else "0", "spm"),
                     ).forEach { (label, value, unit) ->
                         Column(Modifier.padding(vertical = 1.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                             Label(label)
@@ -248,8 +254,8 @@ private fun RunScreen(vm: TreadmillViewModel) {
     }
 }
 
-/** Quick picks 15, 13 … 1; values outside the treadmill's range are clamped when picked. */
-private val QUICK_PICKS = (15 downTo 1 step 2).toList()
+/** Quick picks 15, 12, 8, 5, 3; values outside the treadmill's range are clamped when picked. */
+private val QUICK_PICKS = listOf(15, 12, 8, 5, 3)
 
 @Composable
 private fun Value(value: String, unit: String) {
